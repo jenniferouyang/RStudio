@@ -1,0 +1,101 @@
+---
+title: "HW2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(stringr)
+library(ggplot2)
+library(dplyr)
+```
+1) According to this data set, what are the top 10 most common baby names for US babies, and how many babies have been born with each of these 10 names? (Hint: try using either the count() function or the n() function!)
+```{r}
+library(babynames)
+babynames %>%
+  group_by(name) %>%
+  summarize(top.names = sum(n)) %>%
+  arrange(-top.names) %>%
+  head(10)
+```
+2) Construct a graph showing the number of US births for each of the years since 1880. Using this graph, interpret the relationship between time and the number of US births.
+```{r}
+sum.names <-babynames %>%
+  group_by(year) %>%
+  summarize(sum.names = sum(n))
+
+sum.names %>%
+  ggplot() + geom_line(aes(x = year, y = sum.names), color = c("violet")) + ggtitle("Birth in US from 1880 to 2017") + ylab("Number of Birth") + xlab("Year") +
+  theme_bw()
+
+#The number of birth fluctuates due to the world war and the Great Depression. The sudden rise of birth post-depression is correlated with the babyboomers. 
+```
+3) Compare the number of births in the year 2000 based on this data set with the number of births in the year 2000 claimed by the US government (any .gov website should suffice!). What are these values, and should they values be roughly equal? Why or why not?
+
+According to website InfoPlease, sourced from Department of Health and Human Services, National Center for Health Statistics, there are 4,058,814 birth in 2000.
+
+The values should not be roughly equal, this is because the n value of the dataset babynames does not necessarily correlate with the number of births. It is the number of applicants/application for the baby name in that particular year,. 
+```{r}
+babynames %>% 
+  filter(year == 2000) %>%
+  summarize(year.2000.birth = sum(n))
+
+?babynames
+```
+4) Identify the two longest names given to at least 1000 US babies.
+```{r}
+babynames %>%
+  group_by(name) %>%
+  summarize(top.names = sum(n)) %>%
+  filter(top.names > 1000) %>%
+  mutate(length.of.name = str_count(name)) %>%
+  arrange(-length.of.name)
+
+#The name Maryelizabeth and Michaelangelo are the two longest names givn to at least 1000 US babies.
+```
+
+5) Construct a graph of the average length of newborn babies’ names over time. Interpret your findings.
+```{r}
+#y = average length of baby name over time
+
+l.babyname <-babynames %>%
+  mutate(length.of.name = str_length(name)) %>%
+  group_by(year)%>%
+  mutate(total.letter.of.name = n * length.of.name) %>%
+  summarize(avg = mean(sum(total.letter.of.name)/sum(n)))
+
+l.babyname %>% 
+  ggplot + geom_line(aes(x = year, y = avg)) + ggtitle("average length of baby name overtime")
+
+```
+6) Create a graphic that tells a story about the changes in maleness/femaleness of certain names from 1880 to 2017. In other words, certain names were predominantly given to babies of one particular sex in 1880, and now they are predominantly given to babies of a different sex. You may choose to create this graph/tell this story in any way you see fit, but you must utilize the geom text() function at some point in your graphic. Your graphic must be self-contained, and will be graded on its aesthetically pleasing nature. You are allowed to caption your graphic, but you may not write any text to explain what your graphic is trying to convey
+```{r}
+name.filtered <- babynames %>%
+  group_by(year, name) %>%
+  mutate(prop.of.gender = n/sum(n)) %>%
+  filter(sex == "F") %>%
+  filter(name %in% c("Donnie", "Robbie", "Vinnie","Leone","Isa"))
+
+name.filtered %>%
+  group_by(name) %>%
+  summarize(difference = diff(prop.of.gender)) %>%
+  arrange(difference)
+
+name.filtered %>%
+  ggplot (aes(x=year, 
+              y =prop.of.gender, 
+              group = name, 
+              color = name, 
+              label = label=rownames(name.filtered)), 
+          scale_color_manual(values = c("Purple", "Pink", "Violet","Orange", "Red"))) + 
+  geom_smooth() + 
+  xlab("Year") + 
+  ylab("Proportion of the Name Assigned to Male/Female)") +
+  ggtitle("Fluctuation of the Gendering of Names Over Time") + 
+  theme_light() +
+  geom_label(size = 4, check_overlap == TRUE)
+

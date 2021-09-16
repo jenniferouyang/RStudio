@@ -1,0 +1,137 @@
+---
+title: "HW1"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE,
+                      cache = TRUE)
+```
+
+```{r mariokart}
+library(openintro)
+library(dplyr)
+library(ggplot2)
+```
+
+#1 Least Expensive Mario Kart Game with at least 1 steering wheel in Ebay auction
+```{r}
+mariokart %>%
+  filter(wheels >= 1) %>% select(total_pr, wheels) %>% arrange(total_pr)
+```
+#2 Calculate the value of the range of shipping prices for each shipping speed/method.Which shipping speed/method had the largest range of shipping prices, and which had the smallest range?
+```{r}
+mariokart %>%
+  group_by(ship_sp) %>%
+  summarize(range = max(ship_pr)- min(ship_pr))
+```
+#3  Calculate the mean and median total prices of new Mario Kart games and used Mario Kart games. Explain your findings.
+```{r}
+
+mariokart %>%
+  group_by(cond) %>%
+  summarize(mean.price = mean(total_pr),
+            median.price = median(total_pr))
+```
+By comparing the median and mean total prices, I found out that the used mariokart's median and mean is lower than new mariokarts' price. The median price of new mariokart is higher than its mean whereas it is the opposite for used mariokarts
+
+#4  Investigate—using whatever method you see fit—why you obtained the results in 3). (i.e., why are certain mean and median prices not equal.)
+```{r}
+mariokart %>%
+  filter(cond %in% c("new","used")) %>%
+  ggplot() + geom_boxplot(mapping = (aes(x = cond, y = total_pr, color = cond))) +
+  scale_color_manual(values = c("purple", "hotpink")) + 
+  ylab("Total Price") + xlab("Condition") +
+  ggtitle("Median and mean with outliers of new and used mariokarts")
+```
+There are outlier points that costs significantly more than the median price, which significantly increases the mean price of used mariokarts. 
+
+#5 Remove any ‘problem points’ and/or severe outliers from your data set, if they exist. If you choose to remove any, justify why you made this decision. If there were no data values to remove, explain how you knew this.
+```{r}
+mariokart %>%
+  arrange(-total_pr)
+
+mariokart %>%
+  filter(total_pr < 100) %>%
+  filter(cond %in% c("new","used")) %>%
+  ggplot() + geom_boxplot(mapping = (aes(x = cond, y = total_pr, color = cond))) +
+  scale_color_manual(values = c("hotpink", "orange"))
+
+mariokart %>%
+  filter(total_pr < 100) %>%
+  group_by(cond) %>%
+  summarize(mean.price = mean(total_pr),
+            median.price = median(total_pr))
+```
+By removing Nintedo Wii Console Bundle Guitar Hero 5 Mario Kart and 10 Nintendo Wii Games - MarioKart Wii, SpiderMan 3, etc, which are selling bundles of more than 1 mariokart, this creates a more accurate representation of the mean price of each mariokart sells. 
+
+#6 Calculate the median total price for each combination of game condition and
+#whether or not the auction contained any number of steering wheels. Report
+#these values.
+```{r}
+mariokart %>%
+  filter(cond %in% c("new","used")) %>%
+  group_by(cond) %>%
+  filter(wheels %in% c(0,1,2,3,4)) %>%
+  group_by(cond, wheels) %>%
+  summarize(median.pr = median(total_pr))
+```
+#7Suppose you only have $50 to spend. Without manually counting, determine the proportion of games new and used Mario Kart games you would be able to purchase
+
+```{r}
+low.than.fifty <- mariokart %>% filter(total_pr < 50)
+
+mariokart %>%
+  group_by(cond) %>%
+  summarize(proportion = sum(total_pr < 50)/n())
+
+```
+
+#8 Finally, if you were to sell your copy of Mario Kart Wii on ebay (and assuming you could magically control all possible variables), determine the optimal set of variables to maximize the total selling price of your game. Be sure to justify your answer based on your findings in 1)–7).
+```{r}
+mariokart %>%
+  arrange(-total_pr)
+
+mariokart %>%
+  filter(total_pr < 100) %>%
+  ggplot() + geom_point(mapping = (aes(x=ship_pr, y=total_pr, color = cond))) +
+  scale_color_manual(values = c("purple", "pink")) +
+  geom_smooth(aes(x=ship_pr, y=total_pr), method = "lm")
+
+mariokart %>%
+  filter(total_pr < 100) %>%
+  ggplot() + geom_point(mapping = (aes(x=n_bids, y=total_pr, color = cond))) +
+  scale_color_manual(values = c("purple", "pink")) +
+  geom_smooth(aes(x=n_bids, y=total_pr), method = "lm")
+
+mariokart %>%
+  filter(total_pr < 100) %>%
+  ggplot() + geom_point(mapping = (aes(x=seller_rate, y=total_pr, color = cond))) +
+  scale_color_manual(values = c("purple", "pink")) +
+  geom_smooth(aes(x=seller_rate, y=total_pr), method = "lm") 
+
+mariokart %>%
+  filter(total_pr < 100) %>%
+  ggplot() + geom_boxplot(mapping = aes(x = factor(wheels), y= total_pr, fill = cond)) +
+  scale_fill_manual(values = c("hotpink","orange"))
+
+mariokart %>%
+  filter(total_pr < 100) %>%
+  ggplot() + geom_boxplot(mapping = aes(x = factor(ship_sp), y= total_pr, fill = cond)) +
+  scale_fill_manual(values = c("pink","violet"))
+
+mariokart %>%
+  filter(total_pr < 100) %>%
+  ggplot() + geom_boxplot(mapping = aes(x = factor(stock_photo), y= total_pr, fill = cond)) + 
+  scale_fill_manual(values = c("pink","orange")) +
+  xlab("Stock Photo") + ylab("Total Price") + ggtitle("Stock Photo and Price in different condition (cond)")
+
+```
+I should sell Nintedo Wii Console Bundle Guitar Hero 5 Mario Kart.
+I also tried to graph each continuous variable to see whether there is an upward trend. 
+It is better to sell a new mariocart. 
+It can be seen that higher seller rate marginally increases total price, however, this may be influenced by the three new mariokarts with high total price and not the seller rate itself. Selling 3 wheels mariokarts is the best. Shipment method media or standard also marginally increases total price. 

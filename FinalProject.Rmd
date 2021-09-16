@@ -1,0 +1,190 @@
+---
+title: "FinalProject"
+output: html_document
+runtime: shiny
+---
+
+Outline for final project:
+-keystone graphic
+-introduction (data set + research question)
+-methods (methodology + data in greater detail + exploratory graphs)
+-results (describe + graphs)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(gganimate)
+library(rvest)
+library(dplyr)
+library(leaflet)
+library(geojsonio)
+library(rgdal)
+library(RColorBrewer)
+library(tidyverse)
+library(shiny)
+```
+
+My research question: "is climate change affecting when cherry blossom blooms in Japan?"
+```{r}
+sakuradata <- read_csv("data/sakura_first_bloom_dates.csv")
+japanmap <- geojson_read("C:\\Users\\Jennifer Ouyang\\Desktop\\Math216\\data\\japan_prefectures.geojson", what = "sp")
+japanmap@data <- japanmap@data %>% select(name_1) %>% rename(name = name_1)
+
+###Modify the sakuradata so that place names are prefectures 
+japanmap$name <- japanmap$name %>%
+  replace(33, "Hyogo")
+
+sakuradatacopy <- read_csv("data/sakura.csv")
+japanmap@data <- japanmap@data %>% inner_join(sakuradatacopy, by = c("name" = "Site Name"))
+sakuradata <- japanmap@data
+
+###Animate map
+#Mutate new color currentday - bloomdate
+japanmap@data$`2020` <-   japanmap@data$`2020` %>%
+  as.Date(format = "%m/%d/%Y")
+day <- as.Date("4/1/2020",
+               format = "%m/%d/%Y")
+
+japanmap@data <- japanmap@data %>%
+  mutate(days = `2020` - day)
+japanmap@data$days <- japanmap@data$days %>% as.numeric()
+
+#Create color
+sakuracolor <- c("grey95", "thistle1", "plum1", "darkorchid", "plum1", "thistle1", "grey95")
+color2 <- colorBin(palette = sakuracolor,
+                   bins = c(-100, -7, -3, 0, 3, 7, 100))
+
+```
+
+
+
+```{r}
+date<-seq(as.Date("2020-03-10"), as.Date("2020-5-10"), by="day")
+sakuracolor <- c("grey95", "thistle1", "plum1", "darkorchid", "plum1", "thistle1", "grey95")
+color2 <- colorBin(palette = sakuracolor,
+                   bins = c(-100, -7, -3, 0, 3, 7, 100))
+
+
+shinyApp(
+  
+  ui = fluidPage(
+    bootstrapPage(tags$style(type = "text/css", "html, body, .leaflet {width:100%; height:100%}"),
+                  leafletOutput("map", width = "100%", height = "100%"),
+                  # position and properties of the time slider
+                  absolutePanel(bottom = 10, right = 300, draggable = TRUE,
+                                # slider title, step increments, and ticks
+                                uiOutput(outputId = "slider1")),
+                  selectizeInput("Year", "Choose Year!",
+                                 choices = 1953:2020)),
+    
+    
+    leafletOutput("japanmap")
+  ),
+  
+  server = function(input, output) {
+    
+    
+    output$slider1 <- renderUI({
+      sliderInput("date", "Date:",
+                  as.Date(paste(c(input$Year, "03-10"), collapse = "-")), 
+                  as.Date(paste(c(input$Year, "05-10"), collapse = "-")),
+                  value = as.Date(paste(c(input$Year, "05-10"), collapse = "-")),
+                  step = 2,
+                  animate = T)
+    })
+    
+    output$japanmap = renderLeaflet({
+      
+      #Map day
+      japanmap %>%
+        leaflet() %>%
+        addPolygons(color = "black",
+                    #fillColor = ~color2(japanmap$days),
+                    fillOpacity = 0.7,
+                    opacity = 1,
+                    weight = 1)
+    })
+    
+    observeEvent(input$date, {
+      japanmap@data[ ,input$Year] <-   japanmap@data[ ,input$Year] %>%
+        as.Date(format = "%m/%d/%Y")
+      
+      japanmap@data <- japanmap@data %>%
+        mutate(days = japanmap@data[ ,input$Year] - input$date)
+      
+      japanmap@data$days <- japanmap@data$days %>% as.numeric()
+      
+      leafletProxy("japanmap", data = japanmap) %>%
+        #clearShapes() %>%
+        addPolygons(fillColor = ~color2(japanmap@data$days),
+                    color = "black",
+                    #fillColor = ~color2(japanmap$days),
+                    fillOpacity = 0.7,
+                    opacity = 1,
+                    weight = 1)
+      
+    })
+    
+  }
+)
+
+
+```
+Explore the data set sakuradata
+```{r}
+summary(sakuradata)
+sakuradata <- sakuradata %>%
+  select(-`Currently Being Observed`, -Notes, -`30 Year Average 1981-2010`)
+
+sakuradatalong <- sakuradata %>%
+  pivot_longer(!name, names_to = "year",
+               values_to = "date")
+
+sakuradatalong$year <- sakuradatalong$year %>%
+  as.numeric()
+
+sakuradatalong$date <- sakuradatalong$date %>%
+    as.Date(format = "%m/%d/%Y")
+
+sakuradatalong$date <-str_sub(sakuradatalong$date, start = 6, end = -1)
+
+sakuradatalong %>%
+  filter(name == "Hokkaido") %>%
+  mutate(date = as.Date(date, format = "%m-%d")) %>%
+  ggplot(aes(x = year,
+             y = date)) +
+  geom_point() +
+  geom_smooth(
+              se = FALSE) +
+  geom_line() +
+  theme_bw() + xlab("Date") + ylab("Year")
+
+
+tempurl <- "https://pkgstore.datahub.io/core/global-temp/annual_csv/data/a26b154688b061cdd04f1df36e4408be/annual_csv.csv"
+
+temp <- read_csv(tempurl) %>%
+  filter(Source == "GCAG") %>%
+  filter(Year > 1952)
+temp
+
+```
+```{r}
+sakuradatalong <- sakuradatalong %>%
+  filter(name == "Iwate") %>%
+  mutate(date = as.Date(date, format = "%m-%d"))
+
+ggplot() +
+  geom_point(sakuradatalong, 
+             mapping= aes(x = year,
+                          y = date)) +
+  geom_smooth(sakuradatalong,
+              mapping= aes(x = year,
+                           y = date),
+              method = "lm",
+              se = FALSE) +
+  theme_bw() + xlab("Date") + ylab("Year") +
+  geom_line(temp, 
+            mapping = aes(y = Mean))
+```
+
+    

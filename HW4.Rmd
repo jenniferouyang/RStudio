@@ -1,0 +1,56 @@
+---
+title: "HW4 Mapping"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(stringr)
+library(rvest)
+library(leaflet)
+```
+
+1) Practice your ability to scrape data from online sources,
+
+2) Practice making maps using leaflet, and
+
+3) Practice communicating your results in an understandable, succinct manner.
+
+```{r}
+counties <- read_csv("data/us-counties.csv")
+states <- read_csv("data/us-states.csv")
+coord <- read_csv("data/us-state-capitals.csv")
+
+states <- left_join(states, coord, by =  c("state" = "name"))
+summary(states)
+
+testday <- filter(states, date == "2021-04-20")
+
+testday <- testday %>% 
+  mutate(colorcut = cut(cases, c(4000000, 1000000, 500000, 300000, 100000, 50000, 0), 
+                        include.lowest = TRUE))
+
+color <- colorFactor(palette = "RdYlGn", testday$colorcut)
+
+levels(testday$colorcut) <- rev(levels(testday$colorcut))
+
+
+testday %>%
+  leaflet() %>%
+  addTiles() %>%
+  setView(-96, 37.8, 4) %>%
+  addCircleMarkers(lat = ~latitude,
+                   lng = ~longitude,
+                   radius = ~cases/40000,
+                   fillOpacity = 0.8,
+                   color = ~color(colorcut)) %>%
+  addLegend(pal = color, 
+            values = testday$colorcut, 
+            title = "cases")
+  
+
+
+```
+
